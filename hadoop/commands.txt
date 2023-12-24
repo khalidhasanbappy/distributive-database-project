@@ -1,0 +1,29 @@
+# setup DNS server for solving docker container hostnames
+sudo docker rm -f dns-proxy-server > /dev/null
+sudo docker run --hostname dns.mageddo --name dns-proxy-server -p 5380:5380 \
+-v /var/run/docker.sock:/var/run/docker.sock \
+-v /etc/resolv.conf:/etc/resolv.conf \
+defreitas/dns-proxy-server
+
+# copy articles to inside the build context if not there yet
+mkdir articles
+cp ../data-generation/articles/* articles/
+
+# build image if not built yet
+sudo ./build-image.sh
+
+# start containers
+sudo ./start-container.sh
+
+# start hdfs nodes
+start-all.sh
+
+# for testing purposes
+run-wordcount.sh
+
+# insert articles in hdfs dfs
+load-articles.sh
+
+exit
+
+sudo docker stop hadoop-master hadoop-slave1 hadoop-slave2 dns-proxy-server

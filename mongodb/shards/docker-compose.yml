@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  shardsvr00:
+    container_name: shardsvr00
+    image: mongo
+    command: mongod --shardsvr --replSet shard0 --port 27017 --dbpath /data/db/dbms1
+    ports:
+      - 50001:27017
+    volumes:
+      - shardsvr00:/data/db/dbms1
+
+  shardsvr01:
+    container_name: shardsvr01
+    image: mongo
+    command: mongod --shardsvr --replSet shardrep --port 27017 --dbpath /data/db/dbms1
+    ports:
+      - 50002:27017
+    volumes:
+      - shardsvr01:/data/db/dbms1
+
+  shardsvr10:
+    container_name: shardsvr10
+    image: mongo
+    command: mongod --shardsvr --replSet shardrep --port 27017 --dbpath /data/db/dbms2
+    ports:
+      - 50003:27017
+    volumes:
+      - shardsvr10:/data/db/dbms2
+
+  shardsvr11:
+    container_name: shardsvr11
+    image: mongo
+    command: mongod --shardsvr --replSet shard1 --port 27017 --dbpath /data/db/dbms2
+    ports:
+      - 50004:27017
+    volumes:
+      - shardsvr11:/data/db/dbms2
+
+volumes:
+  shardsvr00: {}
+  shardsvr01: {}
+  shardsvr10: {}
+  shardsvr11: {}

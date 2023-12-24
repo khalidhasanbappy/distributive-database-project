@@ -1,0 +1,155 @@
+docker volume rm $(docker volume ls -q)
+
+docker ps
+docker-compose -f configsvrs/docker-compose.yml ps
+
+docker-compose -f configsvrs/docker-compose.yml up -d
+mongo mongodb://localhost:40001
+rs.initiate(
+  {
+    _id: "cfgrs",
+    configsvr: true,
+    members: [
+      { _id : 0, host : "192.168.1.2:40001" },
+      { _id : 1, host : "192.168.1.2:40002" }
+    ]
+  }
+)
+
+
+docker-compose -f shards/docker-compose.yml up -d
+mongo mongodb://localhost:50001
+rs.initiate(
+  {
+    _id : "shard0",
+    members: [
+      { _id : 0, host : "192.168.1.2:50001" }
+    ]
+  }
+)
+
+mongo mongodb://localhost:50002
+rs.initiate(
+  {
+    _id : "shardrep",
+    members: [
+      { _id : 0, host : "192.168.1.2:50002" },
+      { _id : 1, host : "192.168.1.2:50003" }
+    ]
+  }
+)
+
+mongo mongodb://localhost:50004
+rs.initiate(
+  {
+    _id : "shard1",
+    members: [
+      { _id : 1, host : "192.168.1.2:50004" }
+    ]
+  }
+)
+
+docker-compose -f router/docker-compose.yml up -d
+mongo mongodb://localhost:60000
+
+sh.addShard( "shard0/192.168.1.2:50001")
+sh.addShard( "shardrep/192.168.1.2:50002,192.168.1.2:50003")
+sh.addShard( "shard1/192.168.1.2:50004")
+sh.addShardTag("shard0", "DBMS1")
+sh.addShardTag("shard1", "DBMS2")
+sh.addShardTag("shardrep", "DBMS12")
+
+use demo
+sh.enableSharding("demo")
+
+sh.shardCollection("demo.user_beijing", {"uid": 1})
+sh.addTagRange( 
+  "demo.user_beijing",
+  { "uid" : MinKey },
+  { "uid" : MaxKey },
+  "DBMS1"
+)
+sh.shardCollection("demo.user_hong_kong", {"uid": 1})
+sh.addTagRange(
+  "demo.user_hong_kong",
+  { "uid" : MinKey },
+  { "uid" : MaxKey },
+  "DBMS2"
+)
+
+
+sh.shardCollection("demo.article_science", {"aid": 1})
+sh.addTagRange( 
+  "demo.article_science",
+  { "aid" : MinKey },
+  { "aid" : MaxKey },
+  "DBMS12"
+)
+sh.shardCollection("demo.article_tech", {"aid": 1})
+sh.addTagRange(
+  "demo.article_tech",
+  { "aid" : MinKey },
+  { "aid" : MaxKey },
+  "DBMS2"
+)
+
+
+sh.shardCollection("demo.read_beijing", {"id": 1})
+sh.addTagRange( 
+  "demo.read_beijing",
+  { "id" : MinKey },
+  { "id" : MaxKey },
+  "DBMS1"
+)
+sh.shardCollection("demo.read_hong_kong", {"id": 1})
+sh.addTagRange(
+  "demo.read_hong_kong",
+  { "id" : MinKey },
+  { "id" : MaxKey },
+  "DBMS2"
+)
+
+
+sh.shardCollection("demo.be_read_science", {"brid": 1})
+sh.addTagRange(
+  "demo.be_read_science",
+  { "brid" : MinKey },
+  { "brid" : MaxKey },
+  "DBMS12"
+)
+sh.shardCollection("demo.be_read_tech", {"brid": 1})
+sh.addTagRange(
+  "demo.be_read_tech",
+  { "brid" : MinKey },
+  { "brid" : MaxKey },
+  "DBMS2"
+)
+
+
+sh.shardCollection("demo.popular_rank_daily", {"prid": 1})
+sh.addTagRange(
+  "demo.popular_rank_daily",
+  { "prid" : MinKey },
+  { "prid" : MaxKey },
+  "DBMS1"
+)
+sh.shardCollection("demo.popular_rank_weekly", {"prid": 1})
+sh.addTagRange(
+  "demo.popular_rank_weekly",
+  { "prid" : MinKey },
+  { "prid" : MaxKey },
+  "DBMS2"
+)
+sh.shardCollection("demo.popular_rank_monthly", {"prid": 1})
+sh.addTagRange(
+  "demo.popular_rank_monthly",
+  { "prid" : MinKey },
+  { "prid" : MaxKey },
+  "DBMS2"
+)
+
+
+
+docker-compose -f configsvrs/docker-compose.yml down -v
+docker-compose -f shards/docker-compose.yml down -v
+docker-compose -f router/docker-compose.yml down -v
